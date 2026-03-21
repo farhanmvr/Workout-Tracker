@@ -49,7 +49,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 _currentIndex = index;
               });
             },
-            indicatorColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+            indicatorColor: Theme.of(
+              context,
+            ).colorScheme.primary.withOpacity(0.12),
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             surfaceTintColor: Colors.transparent,
             destinations: [

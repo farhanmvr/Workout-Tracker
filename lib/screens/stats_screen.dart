@@ -25,11 +25,18 @@ class _StatsScreenState extends State<StatsScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   int _selectedTabIndex = 0; // 0 for Attendance, 1 for Weight Progress
+  final ScrollController _graphScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+  }
+
+  @override
+  void dispose() {
+    _graphScrollController.dispose();
+    super.dispose();
   }
 
   Set<DateTime> _getAttendanceDates(List<WorkoutSession> sessions) {
@@ -133,10 +140,14 @@ class _StatsScreenState extends State<StatsScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text('Weight History',
+                  const Text('Weight History (Last 2 Weeks)',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  ...history.reversed.map((record) => _buildWeightRecordTile(context, record, statsProvider)),
+                  ...history.reversed
+                      .where((record) => record.date.isAfter(
+                          DateTime.now().subtract(const Duration(days: 14))))
+                      .map((record) => _buildWeightRecordTile(
+                          context, record, statsProvider)),
                 ],
               ],
             ],
@@ -457,110 +468,164 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Widget _buildChart(BuildContext context, List history) {
-    final spots = history.asMap().entries.map((e) {
+    if (history.isEmpty) return const SizedBox.shrink();
+
+    // Limit to latest 30 data points for performance and clarity
+    final graphHistory = history.length > 30 
+        ? history.sublist(history.length - 30) 
+        : history;
+
+    // Calculate Y axis limits with buffers
+    double minWeight =
+        graphHistory.map((e) => (e.weight as double)).reduce((a, b) => a < b ? a : b);
+    double maxWeight =
+        graphHistory.map((e) => (e.weight as double)).reduce((a, b) => a > b ? a : b);
+
+    // Padding for Y axis - increased to avoid label clipping
+    double weightRange = maxWeight - minWeight;
+    if (weightRange == 0) weightRange = 10;
+    double minY = (minWeight - weightRange * 0.15).floorToDouble();
+    double maxY = (maxWeight + weightRange * 0.45).ceilToDouble(); // More space for labels
+
+    final spots = graphHistory.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), e.value.weight);
     }).toList();
 
-    return LineChart(
-      LineChartData(
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Theme.of(context).disabledColor.withValues(alpha: 0.1),
-            strokeWidth: 1,
-          ),
-        ),
-        titlesData: FlTitlesData(
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                final int index = value.toInt();
-                if (index < 0 || index >= history.length) {
-                  return const SizedBox.shrink();
-                }
-                final date = history[index].date;
-                return Padding(
-                  padding: const EdgeInsets.only(top: 12.0),
-                  child: Text(
-                    DateFormat('d MMM').format(date),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.5),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (spot) => Theme.of(context).colorScheme.surface,
-            getTooltipItems: (touchedSpots) {
-              return touchedSpots.map((spot) {
-                return LineTooltipItem(
-                  '${spot.y} kg',
-                  TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                );
-              }).toList();
-            },
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            curveSmoothness: 0.35,
-            gradient: LinearGradient(
-              colors: [
-                Theme.of(context).colorScheme.primary,
-                Theme.of(context).colorScheme.secondary,
-              ],
-            ),
-            barWidth: 6,
-            isStrokeCapRound: true,
-            dotData: FlDotData(
-              show: true,
-              getDotPainter: (spot, percent, barData, index) =>
-                  FlDotCirclePainter(
-                radius: 4,
-                color: Colors.white,
-                strokeWidth: 3,
-                strokeColor: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.0),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
+    final barData = LineChartBarData(
+      spots: spots,
+      isCurved: true,
+      curveSmoothness: 0.35,
+      gradient: LinearGradient(
+        colors: [
+          Theme.of(context).colorScheme.primary,
+          Theme.of(context).colorScheme.secondary,
         ],
+      ),
+      barWidth: 6,
+      isStrokeCapRound: true,
+      dotData: FlDotData(
+        show: true,
+        getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+          radius: 4,
+          color: Colors.white,
+          strokeWidth: 3,
+          strokeColor: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+      belowBarData: BarAreaData(
+        show: true,
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.0),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+    );
+
+    // Dynamic width for scrolling if many points
+    final double chartWidth =
+        MediaQuery.of(context).size.width * (graphHistory.length > 6 ? graphHistory.length / 6 : 1.0);
+
+    // Auto-scroll to end after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_graphScrollController.hasClients) {
+        _graphScrollController.animateTo(
+          _graphScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+
+    return SingleChildScrollView(
+      controller: _graphScrollController,
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: chartWidth,
+        child: LineChart(
+          LineChartData(
+            minX: -0.5,
+            maxX: (graphHistory.length - 1).toDouble() + 0.5,
+            minY: minY,
+            maxY: maxY,
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              getDrawingHorizontalLine: (value) => FlLine(
+                color: Theme.of(context).disabledColor.withValues(alpha: 0.1),
+                strokeWidth: 1,
+              ),
+            ),
+            titlesData: FlTitlesData(
+              topTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              leftTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 32,
+                  getTitlesWidget: (value, meta) {
+                    final int index = value.toInt();
+                    if (index < 0 || index >= graphHistory.length) {
+                      return const SizedBox.shrink();
+                    }
+                    final date = graphHistory[index].date;
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Text(
+                        DateFormat('d MMM').format(date),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.5),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            lineTouchData: LineTouchData(
+              enabled: true, // Must be true for showingTooltipIndicators to work
+              handleBuiltInTouches: false, // Disables all interactivity (hover/tap)
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipColor: (spot) => Theme.of(context).colorScheme.primaryContainer,
+                tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                tooltipMargin: 8,
+                getTooltipItems: (touchedSpots) {
+                  return touchedSpots.map((spot) {
+                    return LineTooltipItem(
+                      '${spot.y}',
+                      TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    );
+                  }).toList();
+                },
+              ),
+            ),
+            showingTooltipIndicators: spots.asMap().entries.map((e) {
+              return ShowingTooltipIndicators([
+                LineBarSpot(barData, 0, e.value),
+              ]);
+            }).toList(),
+            borderData: FlBorderData(show: false),
+            lineBarsData: [barData],
+          ),
+        ),
       ),
     );
   }
-
   void _showUpdateHeightDialog(BuildContext context, StatsProvider provider) {
     final heightController =
         TextEditingController(text: provider.height?.toString());

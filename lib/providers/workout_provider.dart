@@ -66,14 +66,19 @@ class WorkoutProvider extends ChangeNotifier {
   }
 
   // Workouts
-  Future<void> addWorkout(String name, {String note = ''}) async {
+  Future<void> addWorkout(String name,
+      {String note = '', String description = '', List<String>? tags}) async {
     final workout = Workout(
       id: const Uuid().v4(),
       name: name,
       notes: note.isNotEmpty ? [note] : [],
       profileId: _activeProfileId,
+      description: description,
+      tags: tags,
     );
     await _workoutBox.put(workout.id, workout);
+
+
     
     // Supplement order
     final orderKey = 'workoutIdOrder_$_activeProfileId';
@@ -135,6 +140,34 @@ class WorkoutProvider extends ChangeNotifier {
       await workout.save();
       notifyListeners();
     }
+  }
+
+  Future<void> updateWorkoutDescription(String workoutId, String newDescription) async {
+    final workout = _workoutBox.get(workoutId);
+    if (workout != null) {
+      workout.description = newDescription;
+      await workout.save();
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateWorkoutTags(String workoutId, List<String> newTags) async {
+    final workout = _workoutBox.get(workoutId);
+    if (workout != null) {
+      workout.tags = newTags;
+      await workout.save();
+      notifyListeners();
+    }
+  }
+
+  List<String> get allAvailableTags {
+    final Set<String> tags = {};
+    for (var workout in workouts) {
+      if (workout.tags != null) {
+        tags.addAll(workout.tags!);
+      }
+    }
+    return tags.toList()..sort();
   }
 
   Future<void> deleteWorkout(String workoutId) async {

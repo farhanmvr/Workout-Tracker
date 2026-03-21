@@ -9,6 +9,7 @@ import 'workout_detail_screen.dart';
 import '../widgets/premium_card.dart';
 
 import '../services/export_service.dart';
+import '../widgets/app_bar_action_button.dart'; // Added import
 
 class SessionDetailScreen extends StatefulWidget {
   final String sessionId;
@@ -19,6 +20,18 @@ class SessionDetailScreen extends StatefulWidget {
 }
 
 class _SessionDetailScreenState extends State<SessionDetailScreen> {
+  String _workoutSearchQuery = ''; // Existing
+  String _exerciseSearchQuery = ''; // Added
+  bool _isSearching = false; // Added
+  final _searchController = TextEditingController(); // Added
+  final Set<String> _selectedTags = {};
+
+  @override
+  void dispose() {
+    _searchController.dispose(); // Added
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<WorkoutProvider>(
@@ -37,10 +50,65 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
           return const Scaffold(body: Center(child: Text('Session not found')));
         }
 
+        // Filter exercises based on search query and tag
+        final filteredExercises = session.exercises.where((exercise) {
+          final workoutObj = provider.getWorkoutById(exercise.workoutId);
+          final matchesSearch = _exerciseSearchQuery.isEmpty ||
+              (workoutObj?.name
+                      .toLowerCase()
+                      .contains(_exerciseSearchQuery.toLowerCase()) ??
+                  false);
+          final matchesTag = _selectedTags.isEmpty ||
+              (workoutObj?.tags?.any((tag) => _selectedTags.contains(tag)) ??
+                  false);
+          return matchesSearch && matchesTag;
+        }).toList();
+
+        final sessionTags = session.exercises
+            .map((e) => provider.getWorkoutById(e.workoutId)?.tags ?? [])
+            .expand((t) => t)
+            .toSet()
+            .toList()
+          ..sort();
+
+
         return Scaffold(
           appBar: AppBar(
-            title: Text(session.name),
+            title: _isSearching // Modified AppBar title
+                ? TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Search exercises...',
+                      border: InputBorder.none,
+                      hintStyle: TextStyle(color: Colors.white70),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    onChanged: (value) {
+                      setState(() {
+                        _exerciseSearchQuery = value;
+                      });
+                    },
+                  )
+                : Text(session.name),
             actions: [
+              IconButton( // Added search icon button
+                icon: Icon(_isSearching ? Icons.close : Icons.search),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = !_isSearching;
+                    if (!_isSearching) {
+                      _exerciseSearchQuery = '';
+                      _searchController.clear();
+                    }
+                  });
+                },
+              ),
+              AppBarActionButton( // Changed to AppBarActionButton
+                onPressed: () => _showSelectWorkoutDialog(context, provider),
+                icon: Icons.add,
+                tooltip: 'Add Exercise',
+              ),
               IconButton(
                 icon: const Icon(Icons.share_outlined),
                 tooltip: 'Export PDF',
@@ -59,7 +127,88 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               ? const Center(
                   child: Text('No exercises added to this session yet.'),
                 )
-              : ReorderableListView.builder(
+              : Column(
+                  children: [
+                    if (sessionTags.isNotEmpty)
+                      Container(
+                        height: 50,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: sessionTags.length + 1,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemBuilder: (context, index) {
+                            final isAll = index == 0;
+                            final tag = isAll ? null : sessionTags[index - 1];
+                            final isSelected = isAll
+                                ? _selectedTags.isEmpty
+                                : _selectedTags.contains(tag);
+
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: Text(
+                                  isAll ? 'All' : tag!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (isAll) {
+                                      _selectedTags.clear();
+                                    } else {
+                                      if (selected) {
+                                        _selectedTags.add(tag!);
+                                      } else {
+                                        _selectedTags.remove(tag!);
+                                      }
+                                    }
+                                  });
+                                },
+                                backgroundColor: Colors.transparent,
+                                selectedColor:
+                                    Theme.of(context).colorScheme.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  side: BorderSide(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                showCheckmark: false,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    Expanded(
+                      child: filteredExercises.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _isSearching || _selectedTags.isNotEmpty
+                                        ? Icons.search_off
+                                        : Icons.fitness_center_outlined,
+                                    size: 64,
+                                    color: Colors.grey.withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'No exercises match your criteria',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ReorderableListView.builder(
                   onReorder: (oldIndex, newIndex) {
                     provider.reorderExercisesInSession(
                       widget.sessionId,
@@ -67,9 +216,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                       newIndex,
                     );
                   },
-                  itemCount: session.exercises.length,
+                  itemCount: filteredExercises.length,
                   itemBuilder: (context, index) {
-                    final exercise = session!.exercises[index];
+                    final exercise = filteredExercises[index];
                     final workoutObj = provider.getWorkoutById(
                       exercise.workoutId,
                     );
@@ -181,6 +330,67 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (workoutObj?.tags != null &&
+                                    workoutObj!.tags!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4, bottom: 2),
+                                    child: Wrap(
+                                      spacing: 4,
+                                      runSpacing: 2,
+                                      children: workoutObj!.tags!
+                                          .map((tag) => Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 1,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary
+                                                      .withValues(alpha: 0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  tag,
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ))
+                                          .toList(),
+                                    ),
+                                  ),
+                                if (workoutObj != null &&
+                                    workoutObj.allNotes.isNotEmpty)
+                                  ...workoutObj.allNotes.map((note) => Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.notes,
+                                              size: 11,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                note,
+                                                style: const TextStyle(
+                                                  color: Colors.grey,
+                                                  fontSize: 12,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )),
                                 if (recentSet != null)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
@@ -189,130 +399,57 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                                       style: TextStyle(
                                         color: isDoneToday
                                             ? Colors.green
-                                            : Theme.of(
-                                                context,
-                                              ).colorScheme.primary,
+                                            : Theme.of(context).colorScheme.primary,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
-                                if (workoutObj != null &&
-                                    workoutObj.allNotes.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.notes,
-                                          size: 12,
-                                          color: Colors.grey,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            workoutObj.allNotes.first,
-                                            style: const TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 12,
-                                              fontStyle: FontStyle.italic,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                               ],
                             ),
                             children: [
-                              if (workoutObj != null &&
-                                  workoutObj.allNotes.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                    vertical: 4.0,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: workoutObj.allNotes
-                                        .map(
-                                          (note) => Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 2,
-                                            ),
-                                            child: Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                const Text(
-                                                  '• ',
-                                                  style: TextStyle(
-                                                    color: Colors.grey,
-                                                  ),
+                                if (workoutObj != null)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0,
+                                      vertical: 8.0,
+                                    ),
+                                    child: InkWell(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                WorkoutDetailScreen(
+                                                  workoutId: workoutObj.id,
                                                 ),
-                                                Expanded(
-                                                  child: Text(
-                                                    note,
-                                                    style: const TextStyle(
-                                                      fontSize: 13,
-                                                      color: Colors.grey,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
                                           ),
-                                        )
-                                        .toList(),
-                                  ),
-                                ),
-                              if (workoutObj != null)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                    vertical: 8.0,
-                                  ),
-                                  child: InkWell(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              WorkoutDetailScreen(
-                                                workoutId: workoutObj.id,
-                                              ),
-                                        ),
-                                      );
-                                    },
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.edit_note,
-                                          size: 18,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.primary,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          workoutObj.allNotes.isEmpty
-                                              ? 'Add a note...'
-                                              : 'Manage notes',
-                                          style: TextStyle(
+                                        );
+                                      },
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.settings_outlined,
+                                            size: 18,
                                             color: Theme.of(
                                               context,
                                             ).colorScheme.primary,
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 13,
                                           ),
-                                        ),
-                                      ],
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Manage workout',
+                                            style: TextStyle(
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
                               const Divider(),
                               Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -573,12 +710,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                     );
                   },
                 ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _showSelectWorkoutDialog(context, provider),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Exercise'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ],
           ),
         );
       },
@@ -830,27 +963,180 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       return;
     }
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Workout'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: provider.workouts.length,
-            itemBuilder: (context, index) {
-              final workout = provider.workouts[index];
-              return ListTile(
-                title: Text(workout.name),
-                onTap: () {
-                  provider.addExerciseToSession(widget.sessionId, workout.id);
-                  Navigator.pop(context);
-                },
-              );
-            },
-          ),
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Add Exercise',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey.withOpacity(0.1),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search workouts...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.grey.withOpacity(0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setModalState(() {
+                        _workoutSearchQuery = value.toLowerCase();
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Consumer<WorkoutProvider>(
+                    builder: (context, workoutProvider, child) {
+                      final workouts = workoutProvider.workouts.where((w) {
+                        return w.name.toLowerCase().contains(_workoutSearchQuery);
+                      }).toList();
+
+                      if (workouts.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.search_off,
+                                size: 48,
+                                color: Colors.grey.withOpacity(0.5),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No workouts match "$_workoutSearchQuery"',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: workouts.length,
+                        itemBuilder: (context, index) {
+                          final workout = workouts[index];
+                          final initials = workout.name.isNotEmpty
+                              ? workout.name[0].toUpperCase()
+                              : '?';
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: PremiumCard(
+                              onTap: () {
+                                workoutProvider.addExerciseToSession(
+                                  widget.sessionId,
+                                  workout.id,
+                                );
+                                Navigator.pop(context);
+                              },
+                              child: ListTile(
+                                leading: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      initials,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color:
+                                            Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  workout.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text(
+                                  workout.allNotes.isNotEmpty
+                                      ? workout.allNotes.last
+                                      : 'No notes',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                trailing: const Icon(Icons.add_circle_outline),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

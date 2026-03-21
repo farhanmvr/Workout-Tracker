@@ -8,23 +8,74 @@ import 'session_detail_screen.dart';
 import 'profiles_screen.dart';
 import '../widgets/premium_card.dart';
 import '../providers/profile_provider.dart';
+import '../widgets/app_bar_action_button.dart';
 
-class SessionsScreen extends StatelessWidget {
+class SessionsScreen extends StatefulWidget {
   const SessionsScreen({super.key});
+
+  @override
+  State<SessionsScreen> createState() => _SessionsScreenState();
+}
+
+class _SessionsScreenState extends State<SessionsScreen> {
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+  bool _isSearching = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Sessions'),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Search sessions...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.white70),
+                ),
+                style: const TextStyle(color: Colors.white),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase();
+                  });
+                },
+              )
+            : const Text('Sessions'),
         actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchQuery = '';
+                  _searchController.clear();
+                }
+              });
+            },
+          ),
+          AppBarActionButton(
+            onPressed: () => _showAddSessionDialog(context),
+            icon: Icons.add,
+            tooltip: 'New Session',
+          ),
           Consumer<ProfileProvider>(
             builder: (context, profileProvider, child) {
               return TextButton.icon(
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const ProfilesScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const ProfilesScreen(),
+                    ),
                   );
                 },
                 icon: const CircleAvatar(
@@ -46,17 +97,27 @@ class SessionsScreen extends StatelessWidget {
       ),
       body: Consumer<WorkoutProvider>(
         builder: (context, provider, child) {
-          final sessions = provider.sessions;
+          final sessions = provider.sessions.where((s) {
+            return s.name.toLowerCase().contains(_searchQuery);
+          }).toList();
+
           if (sessions.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.calendar_today_outlined,
-                      size: 64, color: Colors.grey.withValues(alpha: 0.5)),
+                  Icon(
+                    _isSearching ? Icons.search_off : Icons.calendar_today_outlined,
+                    size: 64,
+                    color: Colors.grey.withValues(alpha: 0.5),
+                  ),
                   const SizedBox(height: 16),
-                  const Text('No sessions recorded yet!',
-                      style: TextStyle(color: Colors.grey)),
+                  Text(
+                    _isSearching
+                        ? 'No sessions match "$_searchQuery"'
+                        : 'No sessions recorded yet!',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             );
@@ -102,7 +163,9 @@ class SessionsScreen extends StatelessWidget {
                       SlidableAction(
                         onPressed: (context) async {
                           final confirm = await showDeleteConfirmation(
-                              context, 'Session');
+                            context,
+                            'Session',
+                          );
                           if (confirm == true) {
                             provider.deleteSession(session.id);
                           }
@@ -159,9 +222,7 @@ class SessionsScreen extends StatelessWidget {
                               Text(
                                 '${session.exercises.length} Workouts',
                                 style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
+                                  color: Theme.of(context).colorScheme.onSurface
                                       .withValues(alpha: 0.6),
                                   fontSize: 14,
                                 ),
@@ -171,10 +232,9 @@ class SessionsScreen extends StatelessWidget {
                         ),
                         Icon(
                           Icons.chevron_right,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.3),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.3),
                         ),
                       ],
                     ),
@@ -184,11 +244,6 @@ class SessionsScreen extends StatelessWidget {
             },
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddSessionDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text('New Session'),
       ),
     );
   }
@@ -204,7 +259,8 @@ class SessionsScreen extends StatelessWidget {
           content: TextField(
             controller: nameController,
             decoration: const InputDecoration(
-                labelText: 'Routine (e.g. Push, Pull, Legs)'),
+              labelText: 'Routine (e.g. Push, Pull, Legs)',
+            ),
             textCapitalization: TextCapitalization.words,
             autofocus: true,
           ),
@@ -216,8 +272,10 @@ class SessionsScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.trim().isNotEmpty) {
-                  Provider.of<WorkoutProvider>(context, listen: false)
-                      .addSession(nameController.text.trim());
+                  Provider.of<WorkoutProvider>(
+                    context,
+                    listen: false,
+                  ).addSession(nameController.text.trim());
                   Navigator.pop(context);
                 }
               },
@@ -230,7 +288,9 @@ class SessionsScreen extends StatelessWidget {
   }
 
   void _showEditSessionNameDialog(
-      BuildContext context, WorkoutSession session) {
+    BuildContext context,
+    WorkoutSession session,
+  ) {
     final nameController = TextEditingController(text: session.name);
     showDialog(
       context: context,
@@ -240,7 +300,8 @@ class SessionsScreen extends StatelessWidget {
           content: TextField(
             controller: nameController,
             decoration: const InputDecoration(
-                labelText: 'Routine (e.g. Push, Pull, Legs)'),
+              labelText: 'Routine (e.g. Push, Pull, Legs)',
+            ),
             textCapitalization: TextCapitalization.words,
             autofocus: true,
           ),
@@ -252,9 +313,10 @@ class SessionsScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.trim().isNotEmpty) {
-                  Provider.of<WorkoutProvider>(context, listen: false)
-                      .updateSessionName(
-                          session.id, nameController.text.trim());
+                  Provider.of<WorkoutProvider>(
+                    context,
+                    listen: false,
+                  ).updateSessionName(session.id, nameController.text.trim());
                   Navigator.pop(context);
                 }
               },
