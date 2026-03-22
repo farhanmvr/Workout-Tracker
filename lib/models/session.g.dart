@@ -20,19 +20,22 @@ class SessionSetAdapter extends TypeAdapter<SessionSet> {
       weight: fields[0] as double,
       reps: fields[1] as int,
       date: fields[2] as DateTime?,
+      isEachSide: fields[3] as bool?,
     );
   }
 
   @override
   void write(BinaryWriter writer, SessionSet obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.weight)
       ..writeByte(1)
       ..write(obj.reps)
       ..writeByte(2)
-      ..write(obj.date);
+      ..write(obj.date)
+      ..writeByte(3)
+      ..write(obj.isEachSide);
   }
 
   @override

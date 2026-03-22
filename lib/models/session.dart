@@ -13,10 +13,14 @@ class SessionSet {
   @HiveField(2)
   DateTime? date;
 
+  @HiveField(3)
+  bool? isEachSide;
+
   SessionSet({
     required this.weight,
     required this.reps,
     this.date,
+    this.isEachSide = false,
   });
 }
 

@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:616236771830:android:06f32bf0d285ccd2a97fd7",
+        "mobilesdk_app_id": "1:616236771830:android:b48a14e8bae90c1aa97fd7",
         "android_client_info": {
-          "package_name": "com.farhanmvr.workout_track"
+          "package_name": "com.farhanmvr.workouttracker"
         }
       },
       "oauth_client": [],

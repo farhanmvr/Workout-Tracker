@@ -1,4 +1,4 @@
-package com.farhanmvr.workout_track
+package com.farhanmvr.workouttracker
 
 import io.flutter.embedding.android.FlutterActivity
 

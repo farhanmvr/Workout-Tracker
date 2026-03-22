@@ -170,13 +170,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.6)),
+                            .withValues(alpha: 0.6)),
                   ),
                   value: themeProvider.themeMode == ThemeMode.dark,
                   activeTrackColor: Theme.of(context)
                       .colorScheme
                       .primary
-                      .withOpacity(0.5),
+                      .withValues(alpha: 0.5),
                   activeThumbColor: Theme.of(context).colorScheme.primary,
                   onChanged: (value) => themeProvider.toggleTheme(),
                 ),

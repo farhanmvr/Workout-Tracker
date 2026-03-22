@@ -254,19 +254,24 @@ class WorkoutProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addSetToExercise(String sessionId, String exerciseId, double weight, int reps, DateTime date) async {
+  Future<void> addSetToExercise(String sessionId, String exerciseId, double weight, int reps, DateTime date, {bool isEachSide = false}) async {
     final session = _sessionBox.get(sessionId);
     if (session != null) {
       final exerciseIndex = session.exercises.indexWhere((e) => e.id == exerciseId);
       if (exerciseIndex != -1) {
-        session.exercises[exerciseIndex].sets.add(SessionSet(weight: weight, reps: reps, date: date));
+        session.exercises[exerciseIndex].sets.add(SessionSet(
+          weight: weight,
+          reps: reps,
+          date: date,
+          isEachSide: isEachSide,
+        ));
         await session.save();
         notifyListeners();
       }
     }
   }
 
-  Future<void> updateSetInExercise(String sessionId, String exerciseId, SessionSet oldSet, double newWeight, int newReps, DateTime newDate) async {
+  Future<void> updateSetInExercise(String sessionId, String exerciseId, SessionSet oldSet, double newWeight, int newReps, DateTime newDate, {bool newIsEachSide = false}) async {
     final session = _sessionBox.get(sessionId);
     if (session != null) {
       final exerciseIndex = session.exercises.indexWhere((e) => e.id == exerciseId);
@@ -277,6 +282,7 @@ class WorkoutProvider extends ChangeNotifier {
           targetSet.weight = newWeight;
           targetSet.reps = newReps;
           targetSet.date = newDate;
+          targetSet.isEachSide = newIsEachSide;
           await session.save();
           notifyListeners();
         }

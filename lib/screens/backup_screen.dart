@@ -55,6 +55,7 @@ class _BackupScreenState extends State<BackupScreen> {
         }
       }
 
+      if (!mounted) return;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -91,7 +92,7 @@ class _BackupScreenState extends State<BackupScreen> {
               SizedBox(height: 12),
               Text('1. SHA-1 Fingerprint: Add your debug and release SHA-1 certificates to your project in the Google Cloud Console or Firebase.'),
               SizedBox(height: 8),
-              Text('2. Package Name: Ensure "com.farhanmvr.workout_track" matches exactly in the console.'),
+              Text('2. Package Name: Ensure "com.farhanmvr.workouttracker" matches exactly in the console.'),
               SizedBox(height: 8),
               Text('3. Drive API: Enable the "Google Drive API" in your Google Cloud project.'),
               SizedBox(height: 8),
@@ -124,10 +125,12 @@ class _BackupScreenState extends State<BackupScreen> {
     try {
       final zipFile = await BackupService.createBackupZip();
       await _driveService.uploadBackup(zipFile);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Backup successful!')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Backup failed: $e')),
       );
@@ -167,14 +170,16 @@ class _BackupScreenState extends State<BackupScreen> {
     try {
       final zipFile = await _driveService.downloadBackup();
       if (zipFile == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No backup found on Drive.')),
-        );
+        if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No backup found on Drive.')),
+      );
         return;
       }
 
       await BackupService.restoreFromZip(zipFile);
       
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Restore successful! Please restart the app.'),
@@ -182,6 +187,7 @@ class _BackupScreenState extends State<BackupScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Restore failed: $e')),
       );

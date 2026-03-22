@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 15,
               offset: const Offset(0, -5),
             ),
@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             indicatorColor: Theme.of(
               context,
-            ).colorScheme.primary.withOpacity(0.12),
+            ).colorScheme.primary.withValues(alpha: 0.12),
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             surfaceTintColor: Colors.transparent,
             destinations: [

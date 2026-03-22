@@ -53,28 +53,31 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         // Filter exercises based on search query and tag
         final filteredExercises = session.exercises.where((exercise) {
           final workoutObj = provider.getWorkoutById(exercise.workoutId);
-          final matchesSearch = _exerciseSearchQuery.isEmpty ||
-              (workoutObj?.name
-                      .toLowerCase()
-                      .contains(_exerciseSearchQuery.toLowerCase()) ??
+          final matchesSearch =
+              _exerciseSearchQuery.isEmpty ||
+              (workoutObj?.name.toLowerCase().contains(
+                    _exerciseSearchQuery.toLowerCase(),
+                  ) ??
                   false);
-          final matchesTag = _selectedTags.isEmpty ||
+          final matchesTag =
+              _selectedTags.isEmpty ||
               (workoutObj?.tags?.any((tag) => _selectedTags.contains(tag)) ??
                   false);
           return matchesSearch && matchesTag;
         }).toList();
 
-        final sessionTags = session.exercises
-            .map((e) => provider.getWorkoutById(e.workoutId)?.tags ?? [])
-            .expand((t) => t)
-            .toSet()
-            .toList()
-          ..sort();
-
+        final sessionTags =
+            session.exercises
+                .map((e) => provider.getWorkoutById(e.workoutId)?.tags ?? [])
+                .expand((t) => t)
+                .toSet()
+                .toList()
+              ..sort();
 
         return Scaffold(
           appBar: AppBar(
-            title: _isSearching // Modified AppBar title
+            title:
+                _isSearching // Modified AppBar title
                 ? TextField(
                     controller: _searchController,
                     autofocus: true,
@@ -92,7 +95,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   )
                 : Text(session.name),
             actions: [
-              IconButton( // Added search icon button
+              IconButton(
+                // Added search icon button
                 icon: Icon(_isSearching ? Icons.close : Icons.search),
                 onPressed: () {
                   setState(() {
@@ -104,7 +108,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   });
                 },
               ),
-              AppBarActionButton( // Changed to AppBarActionButton
+              AppBarActionButton(
+                // Changed to AppBarActionButton
                 onPressed: () => _showSelectWorkoutDialog(context, provider),
                 icon: Icons.add,
                 tooltip: 'Add Exercise',
@@ -171,13 +176,15 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                                   });
                                 },
                                 backgroundColor: Colors.transparent,
-                                selectedColor:
-                                    Theme.of(context).colorScheme.primary,
+                                selectedColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(20),
                                   side: BorderSide(
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                 ),
                                 showCheckmark: false,
@@ -209,329 +216,33 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                               ),
                             )
                           : ReorderableListView.builder(
-                  onReorder: (oldIndex, newIndex) {
-                    provider.reorderExercisesInSession(
-                      widget.sessionId,
-                      oldIndex,
-                      newIndex,
-                    );
-                  },
-                  itemCount: filteredExercises.length,
-                  itemBuilder: (context, index) {
-                    final exercise = filteredExercises[index];
-                    final workoutObj = provider.getWorkoutById(
-                      exercise.workoutId,
-                    );
-                    final workoutName = workoutObj?.name ?? 'Unknown Workout';
-
-                    final isDoneToday = exercise.sets.any((set) {
-                      final d = set.date ?? DateTime.now();
-                      final now = DateTime.now();
-                      return d.year == now.year &&
-                          d.month == now.month &&
-                          d.day == now.day;
-                    });
-
-                    SessionSet? recentSet;
-                    if (exercise.sets.isNotEmpty) {
-                      final sorted = List<SessionSet>.from(exercise.sets)
-                        ..sort(
-                          (a, b) => (b.date ?? DateTime.now()).compareTo(
-                            a.date ?? DateTime.now(),
-                          ),
-                        );
-                      recentSet = sorted.first;
-                    }
-
-                    return PremiumCard(
-                      key: ValueKey(exercise.id),
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Slidable(
-                        key: ValueKey(exercise.id),
-                        endActionPane: ActionPane(
-                          motion: const ScrollMotion(),
-                          extentRatio: 0.25,
-                          children: [
-                            SlidableAction(
-                              onPressed: (context) async {
-                                final confirm = await showDeleteConfirmation(
-                                  context,
-                                  'Exercise',
+                              onReorder: (oldIndex, newIndex) {
+                                provider.reorderExercisesInSession(
+                                  widget.sessionId,
+                                  oldIndex,
+                                  newIndex,
                                 );
-                                if (confirm == true) {
-                                  provider.removeExerciseFromSession(
-                                    widget.sessionId,
-                                    exercise.id,
-                                  );
-                                }
                               },
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              icon: Icons.delete,
-                              label: 'Remove',
-                            ),
-                          ],
-                        ),
-                        child: Theme(
-                          data: Theme.of(
-                            context,
-                          ).copyWith(dividerColor: Colors.transparent),
-                          child: ExpansionTile(
-                            initiallyExpanded: false,
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    workoutName,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                if (isDoneToday)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: Colors.green.withOpacity(0.5),
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.check_circle,
-                                          size: 12,
-                                          color: Colors.green,
-                                        ),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'DONE',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.green,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (workoutObj?.tags != null &&
-                                    workoutObj!.tags!.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4, bottom: 2),
-                                    child: Wrap(
-                                      spacing: 4,
-                                      runSpacing: 2,
-                                      children: workoutObj.tags!
-                                          .map((tag) => Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 6,
-                                                  vertical: 1,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary
-                                                      .withValues(alpha: 0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                ),
-                                                child: Text(
-                                                  tag,
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .primary,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ))
-                                          .toList(),
-                                    ),
-                                  ),
-                                if (workoutObj != null &&
-                                    workoutObj.allNotes.isNotEmpty)
-                                  ...workoutObj.allNotes.map((note) => Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.notes,
-                                              size: 11,
-                                              color: Colors.grey,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Expanded(
-                                              child: Text(
-                                                note,
-                                                style: const TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 12,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )),
-                                if (recentSet != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      '${recentSet.weight} kg x ${recentSet.reps} reps',
-                                      style: TextStyle(
-                                        color: isDoneToday
-                                            ? Colors.green
-                                            : Theme.of(context).colorScheme.primary,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            children: [
-                                if (workoutObj != null)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16.0,
-                                      vertical: 8.0,
-                                    ),
-                                    child: InkWell(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                WorkoutDetailScreen(
-                                                  workoutId: workoutObj.id,
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.settings_outlined,
-                                            size: 18,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Manage workout',
-                                            style: TextStyle(
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.primary,
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                              const Divider(),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
-                                  vertical: 8.0,
-                                ),
-                                child: OutlinedButton.icon(
-                                  onPressed: () =>
-                                      _showAddSetDialog(context, exercise.id),
-                                  icon: const Icon(Icons.add, size: 18),
-                                  label: const Text(
-                                    'LOG NEW SET',
-                                    style: TextStyle(
-                                      letterSpacing: 1.1,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    minimumSize: const Size(
-                                      double.infinity,
-                                      45,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    side: BorderSide(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary.withOpacity(0.5),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (exercise.sets.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                    vertical: 8.0,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        flex: 1,
-                                        child: Text(
-                                          'SET',
-                                          style: _setLabelStyle(context),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        flex: 3,
-                                        child: Text(
-                                          'WEIGHT',
-                                          style: _setLabelStyle(context),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        flex: 2,
-                                        child: Text(
-                                          'REPS',
-                                          style: _setLabelStyle(context),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        flex: 3,
-                                        child: Text(
-                                          'DATE',
-                                          style: _setLabelStyle(context),
-                                          textAlign: TextAlign.right,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              const Divider(height: 1),
-                              if (exercise.sets.isEmpty)
-                                const Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: Text('No sets recorded.'),
-                                )
-                              else
-                                ...() {
-                                  final sortedSets =
+                              itemCount: filteredExercises.length,
+                              itemBuilder: (context, index) {
+                                final exercise = filteredExercises[index];
+                                final workoutObj = provider.getWorkoutById(
+                                  exercise.workoutId,
+                                );
+                                final workoutName =
+                                    workoutObj?.name ?? 'Unknown Workout';
+
+                                final isDoneToday = exercise.sets.any((set) {
+                                  final d = set.date ?? DateTime.now();
+                                  final now = DateTime.now();
+                                  return d.year == now.year &&
+                                      d.month == now.month &&
+                                      d.day == now.day;
+                                });
+
+                                SessionSet? recentSet;
+                                if (exercise.sets.isNotEmpty) {
+                                  final sorted =
                                       List<SessionSet>.from(exercise.sets)
                                         ..sort(
                                           (a, b) => (b.date ?? DateTime.now())
@@ -539,180 +250,597 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                                                 a.date ?? DateTime.now(),
                                               ),
                                         );
+                                  recentSet = sorted.first;
+                                }
 
-                                  final displaySets = sortedSets
-                                      .take(5)
-                                      .toList();
-                                  final int extraCount = sortedSets.length - 5;
-
-                                  final List<Widget> setWidgets = displaySets
-                                      .asMap()
-                                      .entries
-                                      .map<Widget>((entry) {
-                                        final int index = entry.key;
-                                        final SessionSet set = entry.value;
-                                        final date = set.date ?? DateTime.now();
-                                        final setNumber =
-                                            sortedSets.length - index;
-
-                                        return Slidable(
-                                          key: ValueKey(set.hashCode),
-                                          endActionPane: ActionPane(
-                                            motion: const ScrollMotion(),
-                                            extentRatio: 0.5,
-                                            children: [
-                                              SlidableAction(
-                                                onPressed: (context) =>
-                                                    _showEditSetDialog(
-                                                      context,
-                                                      exercise.id,
-                                                      set,
-                                                    ),
-                                                backgroundColor: Colors.blue,
-                                                foregroundColor: Colors.white,
-                                                icon: Icons.edit,
-                                                label: 'Edit',
+                                return PremiumCard(
+                                  key: ValueKey(exercise.id),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  child: Slidable(
+                                    key: ValueKey(exercise.id),
+                                    startActionPane: ActionPane(
+                                      motion: const ScrollMotion(),
+                                      extentRatio: 0.15, // Very small area to trigger faster
+                                      dismissible: DismissiblePane(
+                                        onDismissed: () => _showAddSetDialog(
+                                          context,
+                                          exercise.id,
+                                        ),
+                                        confirmDismiss: () async {
+                                          _showAddSetDialog(
+                                            context,
+                                            exercise.id,
+                                          );
+                                          return false; // Prevent removing the tile
+                                        },
+                                      ),
+                                      children: [
+                                        SlidableAction(
+                                          onPressed: (context) =>
+                                              _showAddSetDialog(
+                                                context,
+                                                exercise.id,
                                               ),
-                                              SlidableAction(
-                                                onPressed: (context) async {
-                                                  final confirm =
-                                                      await showDeleteConfirmation(
-                                                        context,
-                                                        'Set',
-                                                      );
-                                                  if (confirm == true) {
-                                                    provider
-                                                        .removeSetFromExercise(
-                                                          widget.sessionId,
-                                                          exercise.id,
-                                                          set,
-                                                        );
-                                                  }
-                                                },
-                                                backgroundColor: Colors.red,
-                                                foregroundColor: Colors.white,
-                                                icon: Icons.delete,
-                                                label: 'Delete',
+                                          backgroundColor: Colors.blue,
+                                          foregroundColor: Colors.white,
+                                          icon: Icons.add_circle_outline,
+                                          // No label for a "cleaner" quick swipe look
+                                        ),
+                                      ],
+                                    ),
+                                    endActionPane: ActionPane(
+                                      motion: const ScrollMotion(),
+                                      extentRatio: 0.2,
+                                      children: [
+                                        SlidableAction(
+                                          onPressed: (context) async {
+                                            final confirm =
+                                                await showDeleteConfirmation(
+                                                  context,
+                                                  'Exercise',
+                                                );
+                                            if (confirm == true) {
+                                              provider
+                                                  .removeExerciseFromSession(
+                                                    widget.sessionId,
+                                                    exercise.id,
+                                                  );
+                                            }
+                                          },
+                                          backgroundColor: Colors.red,
+                                          foregroundColor: Colors.white,
+                                          icon: Icons.delete,
+                                          label: 'Remove',
+                                        ),
+                                      ],
+                                    ),
+                                    child: Theme(
+                                      data: Theme.of(context).copyWith(
+                                        dividerColor: Colors.transparent,
+                                      ),
+                                      child: ExpansionTile(
+                                        initiallyExpanded: false,
+                                        title: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                workoutName,
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
-                                            ],
-                                          ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 12,
                                             ),
-                                            child: Row(
-                                              children: [
-                                                Expanded(
-                                                  flex: 1,
-                                                  child: Container(
-                                                    width: 24,
-                                                    height: 24,
-                                                    decoration: BoxDecoration(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .primary
-                                                          .withValues(
-                                                            alpha: 0.1,
-                                                          ),
-                                                      shape: BoxShape.circle,
+                                            if (isDoneToday)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
                                                     ),
-                                                    child: Center(
-                                                      child: Text(
-                                                        '$setNumber',
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: Theme.of(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green
+                                                      .withValues(alpha: 0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: Colors.green
+                                                        .withValues(alpha: 0.5),
+                                                  ),
+                                                ),
+                                                child: const Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.check_circle,
+                                                      size: 12,
+                                                      color: Colors.green,
+                                                    ),
+                                                    SizedBox(width: 4),
+                                                    Text(
+                                                      'DONE',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors.green,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (workoutObj?.tags != null &&
+                                                workoutObj!.tags!.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 4,
+                                                  bottom: 2,
+                                                ),
+                                                child: Wrap(
+                                                  spacing: 4,
+                                                  runSpacing: 2,
+                                                  children: workoutObj.tags!
+                                                      .map(
+                                                        (tag) => Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 6,
+                                                                vertical: 1,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .primary
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.1,
+                                                                    ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  4,
+                                                                ),
+                                                          ),
+                                                          child: Text(
+                                                            tag,
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              color:
+                                                                  Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .primary,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      )
+                                                      .toList(),
+                                                ),
+                                              ),
+                                            if (workoutObj != null &&
+                                                workoutObj.allNotes.isNotEmpty)
+                                              ...workoutObj.allNotes.map(
+                                                (note) => Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 2,
+                                                      ),
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.notes,
+                                                        size: 11,
+                                                        color: Colors.grey,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          note,
+                                                          style:
+                                                              const TextStyle(
+                                                                color:
+                                                                    Colors.grey,
+                                                                fontSize: 12,
+                                                              ),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            if (recentSet != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 4,
+                                                ),
+                                                child: Text(
+                                                  '${recentSet.weight} kg${recentSet.isEachSide == true ? ' (each)' : ''} x ${recentSet.reps} reps',
+                                                  style: TextStyle(
+                                                    color: isDoneToday
+                                                        ? Colors.green
+                                                        : Theme.of(
                                                             context,
                                                           ).colorScheme.primary,
-                                                        ),
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        children: [
+                                          if (workoutObj != null)
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 16.0,
+                                                    vertical: 8.0,
+                                                  ),
+                                              child: InkWell(
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          WorkoutDetailScreen(
+                                                            workoutId:
+                                                                workoutObj.id,
+                                                          ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.settings_outlined,
+                                                      size: 18,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.primary,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      'Manage workout',
+                                                      style: TextStyle(
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.primary,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          const Divider(),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16.0,
+                                              vertical: 8.0,
+                                            ),
+                                            child: OutlinedButton.icon(
+                                              onPressed: () =>
+                                                  _showAddSetDialog(
+                                                    context,
+                                                    exercise.id,
+                                                  ),
+                                              icon: const Icon(
+                                                Icons.add,
+                                                size: 18,
+                                              ),
+                                              label: const Text(
+                                                'LOG NEW SET',
+                                                style: TextStyle(
+                                                  letterSpacing: 1.1,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                minimumSize: const Size(
+                                                  double.infinity,
+                                                  45,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                side: BorderSide(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary
+                                                      .withValues(alpha: 0.5),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          if (exercise.sets.isNotEmpty)
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 16.0,
+                                                    vertical: 8.0,
+                                                  ),
+                                              child: Row(
+                                                children: [
+                                                  Expanded(
+                                                    flex: 1,
+                                                    child: Text(
+                                                      'SET',
+                                                      style: _setLabelStyle(
+                                                        context,
                                                       ),
                                                     ),
                                                   ),
-                                                ),
-                                                Expanded(
-                                                  flex: 3,
-                                                  child: Text(
-                                                    '${set.weight} kg',
-                                                    style: const TextStyle(
-                                                      fontSize: 15,
-                                                      fontWeight:
-                                                          FontWeight.bold,
+                                                  Expanded(
+                                                    flex: 3,
+                                                    child: Text(
+                                                      'WEIGHT',
+                                                      style: _setLabelStyle(
+                                                        context,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                                Expanded(
-                                                  flex: 2,
-                                                  child: Text(
-                                                    '${set.reps}',
-                                                    style: const TextStyle(
-                                                      fontSize: 15,
-                                                      fontWeight:
-                                                          FontWeight.w500,
+                                                  Expanded(
+                                                    flex: 2,
+                                                    child: Text(
+                                                      'REPS',
+                                                      style: _setLabelStyle(
+                                                        context,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                                Expanded(
-                                                  flex: 3,
-                                                  child: Text(
-                                                    "${DateFormat('d MMM').format(date)} '${DateFormat('yy').format(date)}",
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey,
+                                                  Expanded(
+                                                    flex: 3,
+                                                    child: Text(
+                                                      'DATE',
+                                                      style: _setLabelStyle(
+                                                        context,
+                                                      ),
+                                                      textAlign:
+                                                          TextAlign.right,
                                                     ),
-                                                    textAlign: TextAlign.right,
                                                   ),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      })
-                                      .toList();
+                                          const Divider(height: 1),
+                                          if (exercise.sets.isEmpty)
+                                            const Padding(
+                                              padding: EdgeInsets.all(16.0),
+                                              child: Text('No sets recorded.'),
+                                            )
+                                          else
+                                            ...() {
+                                              final sortedSets =
+                                                  List<SessionSet>.from(
+                                                    exercise.sets,
+                                                  )..sort(
+                                                    (a, b) =>
+                                                        (b.date ??
+                                                                DateTime.now())
+                                                            .compareTo(
+                                                              a.date ??
+                                                                  DateTime.now(),
+                                                            ),
+                                                  );
 
-                                  if (extraCount > 0) {
-                                    setWidgets.add(
-                                      ListTile(
-                                        title: Center(
-                                          child: Text(
-                                            'Show $extraCount more (Full History)',
-                                            style: TextStyle(
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.primary,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  WorkoutDetailScreen(
-                                                    workoutId:
-                                                        exercise.workoutId,
+                                              final displaySets = sortedSets
+                                                  .take(5)
+                                                  .toList();
+                                              final int extraCount =
+                                                  sortedSets.length - 5;
+
+                                              final List<Widget>
+                                              setWidgets = displaySets.asMap().entries.map<Widget>((
+                                                entry,
+                                              ) {
+                                                final int index = entry.key;
+                                                final SessionSet set =
+                                                    entry.value;
+                                                final date =
+                                                    set.date ?? DateTime.now();
+                                                final setNumber =
+                                                    sortedSets.length - index;
+
+                                                return Slidable(
+                                                  key: ValueKey(set.hashCode),
+                                                  endActionPane: ActionPane(
+                                                    motion:
+                                                        const ScrollMotion(),
+                                                    extentRatio: 0.5,
+                                                    children: [
+                                                      SlidableAction(
+                                                        onPressed: (context) =>
+                                                            _showEditSetDialog(
+                                                              context,
+                                                              exercise.id,
+                                                              set,
+                                                            ),
+                                                        backgroundColor:
+                                                            Colors.blue,
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                        icon: Icons.edit,
+                                                        label: 'Edit',
+                                                      ),
+                                                      SlidableAction(
+                                                        onPressed: (context) async {
+                                                          final confirm =
+                                                              await showDeleteConfirmation(
+                                                                context,
+                                                                'Set',
+                                                              );
+                                                          if (confirm == true) {
+                                                            provider
+                                                                .removeSetFromExercise(
+                                                                  widget
+                                                                      .sessionId,
+                                                                  exercise.id,
+                                                                  set,
+                                                                );
+                                                          }
+                                                        },
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                        icon: Icons.delete,
+                                                        label: 'Delete',
+                                                      ),
+                                                    ],
                                                   ),
-                                            ),
-                                          );
-                                        },
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 16,
+                                                          vertical: 12,
+                                                        ),
+                                                    child: Row(
+                                                      children: [
+                                                        Expanded(
+                                                          flex: 1,
+                                                          child: Container(
+                                                            width: 24,
+                                                            height: 24,
+                                                            decoration: BoxDecoration(
+                                                              color:
+                                                                  Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .primary
+                                                                      .withValues(
+                                                                        alpha:
+                                                                            0.1,
+                                                                      ),
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                            ),
+                                                            child: Center(
+                                                              child: Text(
+                                                                '$setNumber',
+                                                                style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  color: Theme.of(
+                                                                    context,
+                                                                  ).colorScheme.primary,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Expanded(
+                                                          flex: 3,
+                                                          child: Text(
+                                                            '${set.weight} kg${set.isEachSide == true ? ' (each)' : ''}',
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 15,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        Expanded(
+                                                          flex: 2,
+                                                          child: Text(
+                                                            '${set.reps}',
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 15,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        Expanded(
+                                                          flex: 3,
+                                                          child: Text(
+                                                            "${DateFormat('d MMM').format(date)} '${DateFormat('yy').format(date)}",
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors
+                                                                      .grey,
+                                                                ),
+                                                            textAlign:
+                                                                TextAlign.right,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              }).toList();
+
+                                              if (extraCount > 0) {
+                                                setWidgets.add(
+                                                  ListTile(
+                                                    title: Center(
+                                                      child: Text(
+                                                        'Show $extraCount more (Full History)',
+                                                        style: TextStyle(
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    onTap: () {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              WorkoutDetailScreen(
+                                                                workoutId: exercise
+                                                                    .workoutId,
+                                                              ),
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                );
+                                              }
+                                              return setWidgets;
+                                            }(),
+                                        ],
                                       ),
-                                    );
-                                  }
-                                  return setWidgets;
-                                }(),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         );
       },
     );
@@ -722,6 +850,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final weightController = TextEditingController();
     final repsController = TextEditingController();
     DateTime selectedDate = DateTime.now();
+    bool isEachSide = false;
 
     showDialog(
       context: context,
@@ -750,25 +879,19 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                     decoration: const InputDecoration(labelText: 'Reps'),
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.done,
-                    onSubmitted: (_) {
-                      final w = double.tryParse(weightController.text.trim());
-                      final r = int.tryParse(repsController.text.trim());
-                      if (w != null && r != null) {
-                        Provider.of<WorkoutProvider>(
-                          context,
-                          listen: false,
-                        ).addSetToExercise(
-                          widget.sessionId,
-                          exerciseId,
-                          w,
-                          r,
-                          selectedDate,
-                        );
-                        Navigator.pop(context);
-                      }
-                    },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    title: const Text(
+                      'Each side',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    value: isEachSide,
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (val) => setState(() => isEachSide = val),
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       const Icon(Icons.calendar_today, size: 16),
@@ -817,6 +940,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         w,
                         r,
                         selectedDate,
+                        isEachSide: isEachSide,
                       );
                       Navigator.pop(context);
                     }
@@ -839,6 +963,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final weightController = TextEditingController(text: set.weight.toString());
     final repsController = TextEditingController(text: set.reps.toString());
     DateTime selectedDate = set.date ?? DateTime.now();
+    bool isEachSide = set.isEachSide ?? false;
 
     showDialog(
       context: context,
@@ -867,26 +992,19 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                     decoration: const InputDecoration(labelText: 'Reps'),
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.done,
-                    onSubmitted: (_) {
-                      final w = double.tryParse(weightController.text.trim());
-                      final r = int.tryParse(repsController.text.trim());
-                      if (w != null && r != null) {
-                        Provider.of<WorkoutProvider>(
-                          context,
-                          listen: false,
-                        ).updateSetInExercise(
-                          widget.sessionId,
-                          exerciseId,
-                          set,
-                          w,
-                          r,
-                          selectedDate,
-                        );
-                        Navigator.pop(context);
-                      }
-                    },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    title: const Text(
+                      'Each side',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    value: isEachSide,
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (val) => setState(() => isEachSide = val),
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       const Icon(Icons.calendar_today, size: 16),
@@ -936,6 +1054,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         w,
                         r,
                         selectedDate,
+                        newIsEachSide: isEachSide,
                       );
                       Navigator.pop(context);
                     }
@@ -973,10 +1092,12 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             height: MediaQuery.of(context).size.height * 0.8,
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(32),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
@@ -989,7 +1110,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.3),
+                    color: Colors.grey.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1011,7 +1132,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close),
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.grey.withOpacity(0.1),
+                          backgroundColor: Colors.grey.withValues(alpha: 0.1),
                         ),
                       ),
                     ],
@@ -1026,7 +1147,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                       hintText: 'Search workouts...',
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
-                      fillColor: Colors.grey.withOpacity(0.1),
+                      fillColor: Colors.grey.withValues(alpha: 0.1),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
@@ -1044,7 +1165,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   child: Consumer<WorkoutProvider>(
                     builder: (context, workoutProvider, child) {
                       final workouts = workoutProvider.workouts.where((w) {
-                        return w.name.toLowerCase().contains(_workoutSearchQuery);
+                        return w.name.toLowerCase().contains(
+                          _workoutSearchQuery,
+                        );
                       }).toList();
 
                       if (workouts.isEmpty) {
@@ -1055,7 +1178,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                               Icon(
                                 Icons.search_off,
                                 size: 48,
-                                color: Colors.grey.withOpacity(0.5),
+                                color: Colors.grey.withValues(alpha: 0.5),
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -1091,10 +1214,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withOpacity(0.1),
+                                    color: Theme.of(context).colorScheme.primary
+                                        .withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Center(
@@ -1102,8 +1223,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                                       initials,
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color:
-                                            Theme.of(context).colorScheme.primary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                       ),
                                     ),
                                   ),
@@ -1111,7 +1233,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                                 title: Text(
                                   workout.name,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   workout.allNotes.isNotEmpty

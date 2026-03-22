@@ -54,6 +54,7 @@ dependencies:
   extension_google_sign_in_as_googleapis_auth: ^2.0.13
   archive: ^3.6.1
   http: ^1.2.1
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:
