@@ -48,6 +48,12 @@ dependencies:
   file_picker: ^8.1.7
   pdf: ^3.11.1
   printing: ^5.13.2
+  google_sign_in: ^6.2.1
+  googleapis: ^13.2.0
+  googleapis_auth: ^1.6.0
+  extension_google_sign_in_as_googleapis_auth: ^2.0.13
+  archive: ^3.6.1
+  http: ^1.2.1
 
 dev_dependencies:
   flutter_test:
@@ -68,15 +74,9 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/icon/icon.png"
+  remove_alpha_ios: true # Critical for iOS (removes weird black backgrounds)
+  background_color_ios: "#0f172a" # Match app background
   min_sdk_android: 21
-
-flutter_native_splash:
-  color: "#0f172a" # Deep Slate (match background)
-  image: "assets/splash/splash.png"
-  android_12:
-    image: "assets/splash/splash.png"
-    color: "#0f172a"
-  ios: true
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

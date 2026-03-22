@@ -337,7 +337,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                                     child: Wrap(
                                       spacing: 4,
                                       runSpacing: 2,
-                                      children: workoutObj!.tags!
+                                      children: workoutObj.tags!
                                           .map((tag) => Container(
                                                 padding: const EdgeInsets.symmetric(
                                                   horizontal: 6,

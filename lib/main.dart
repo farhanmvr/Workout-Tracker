@@ -12,6 +12,7 @@ import 'providers/theme_provider.dart';
 import 'providers/stats_provider.dart';
 import 'providers/profile_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +34,8 @@ void main() async {
   await Hive.openBox<Profile>('profiles');
   await Hive.openBox('settings');
 
+  final bool isFirstTime = Hive.box('settings').get('isFirstTime', defaultValue: true);
+
   runApp(
     MultiProvider(
       providers: [
@@ -49,13 +52,14 @@ void main() async {
               statsProvider!..updateProfile(profileProps.activeProfileId),
         ),
       ],
-      child: const MyApp(),
+      child: MyApp(showOnboarding: isFirstTime),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool showOnboarding;
+  const MyApp({super.key, required this.showOnboarding});
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +118,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: showOnboarding ? const OnboardingScreen() : const HomeScreen(),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../widgets/premium_card.dart';
 import '../services/export_service.dart';
 import 'profiles_screen.dart';
 import '../providers/profile_provider.dart';
+import 'backup_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -190,6 +191,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 margin: EdgeInsets.zero,
                 child: Column(
                   children: [
+                    ListTile(
+                      leading: const Icon(Icons.sync_rounded, color: Color(0xFF22D3EE)),
+                      title: const Text('Cloud Backup & Sync',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Sync data to Google Drive or iCloud',
+                          style: TextStyle(fontSize: 12)),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const BackupScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1, indent: 56),
                     ListTile(
                       leading: Icon(Icons.picture_as_pdf_outlined,
                           color: Colors.redAccent),
